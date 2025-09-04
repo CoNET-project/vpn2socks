@@ -22,6 +22,8 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         super.init()
     }
     
+    
+    
     open override func startTunnel(options: [String : NSObject]?,
                                    completionHandler: @escaping (Error?) -> Void) {
         NSLog("[PacketTunnelProvider] Starting tunnel...")
@@ -43,11 +45,9 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         
         let v4 = NEIPv4Settings(addresses: [ip], subnetMasks: [mask])
         
-        // ✅ 修改路由配置：排除 APNs 网段和域名
+        // ✅ 修改路由配置：默认走隧道，后续通过 excludedRoutes 进行精确绕行
         v4.includedRoutes = [
-//            NEIPv4Route.default(),
-            NEIPv4Route(destinationAddress: "172.16.0.2", subnetMask: "255.255.255.255"),
-            NEIPv4Route(destinationAddress: "198.18.0.0", subnetMask: "255.254.0.0") // 仅 FakeIP /15
+            NEIPv4Route.default()
         ]
         NSLog("[PacketTunnelProvider] Routing includes 198.18.0.0/15 for fake IPs")
         
@@ -107,7 +107,11 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         ]
         settings.ipv4Settings = v4
         
-        // ✅ DNS设置保持不变，但会在应用层做域名判断
+        
+        // 关闭系统代理（iOS 上使用本地 127.0.0.1 代理会导致跨进程不可达）
+        // 如需启用，请确保代理可被应用访问（非本地回环或经由 TUN 可达地址）。
+        // settings.proxySettings = PacketTunnelProvider.createPACSettings()
+        
         let dns = NEDNSSettings(servers: [fakeDNS])
         dns.matchDomains = [""] // 关键：让所有域名查询都走fakeDNS
         settings.dnsSettings = dns
@@ -137,6 +141,35 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
             )
             await startBox.call(nil)
         }
+    }
+    
+    // 创建PAC自动配置的NEProxySettings
+    public static func createPACSettings() -> NEProxySettings {
+        let proxySettings = NEProxySettings()
+        
+        // 启用PAC自动配置
+        proxySettings.autoProxyConfigurationEnabled = true
+        proxySettings.proxyAutoConfigurationURL = URL(string: "http://127.0.0.1:8888/pac")
+        
+        // 排除简单主机名
+        proxySettings.excludeSimpleHostnames = true
+        
+        // 设置例外列表（直接连接）
+        proxySettings.exceptionList = [
+            "localhost",
+            "127.0.0.1",
+            "::1",
+            "*.local",
+            "169.254/16",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+        ]
+        
+        // 匹配所有域名
+        proxySettings.matchDomains = [""]
+        
+        return proxySettings
     }
     
     open override func stopTunnel(with reason: NEProviderStopReason,
