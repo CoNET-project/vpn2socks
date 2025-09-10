@@ -951,10 +951,20 @@ final actor ConnectionManager {
     }
 
     // MARK: - TCP
+    
+    private var tcpDNSBuffers: [String: Data] = [:]   // 以四元组做key的收包缓冲
+    private func flowKey(_ ip: IPv4Packet, _ tcp: TCPSegment) -> String {
+        "\(ip.sourceAddress):\(tcp.sourcePort)->\(ip.destinationAddress):\(tcp.destinationPort)"
+    }
+    
+    
+    
 
     private func handleTCPPacket(_ ipPacket: IPv4Packet) async {
         guard let tcpSegment = TCPSegment(data: ipPacket.payload) else { return }
         
+
+
         // ✅ 检查目标IP是否为APNs网段
         if isAPNsIP(ipPacket.destinationAddress) {
             stats.apnsBypassedConnections += 1
@@ -1034,6 +1044,15 @@ final actor ConnectionManager {
         }
 
         if let connection = tcpConnections[key] {
+
+            // 🔸拦截发往 fakeDNSServer:53 的 TCP 连接，在“收包路径”开启本地 DNS 模式
+            if ipPacket.destinationAddress == self.fakeDNSServer && tcpSegment.destinationPort == 53 {
+                await connection.configureLocalDNSResponder { [weak self] rawQuery in
+                    guard let self = self else { return nil }
+                    // 复用 UDP 的统一决策与 TTL 缓存逻辑（命中 apnsDomains 才直连 DoH）
+                    return await self.dnsInterceptor.handleQueryAndCreateResponse(for: rawQuery)?.response
+                }
+            }
             await handleEstablishedConnection(connection: connection, tcpSegment: tcpSegment)
         } else {
             handleOrphanPacket(key: key, tcpSegment: tcpSegment)
@@ -1181,11 +1200,25 @@ final actor ConnectionManager {
             logger.debug("[Adaptive] Buffer size: \(bufferSize) bytes for \(self.tcpConnections.count)/\(self.maxConnections) connections")
         }
         
-        Task { [weak self] in
-            guard let self = self else { return }
-            await newConn.start()
-            await self.finishAndCleanup(key: key, dstIP: dstIP)
-        }
+		// 若为 TCP/53→fakeDNS，走本地 DNS 模式；否则保持原逻辑
+		if dstIP == self.fakeDNSServer && tcpSegment.destinationPort == 53 {
+			await newConn.configureLocalDNSResponder { [weak self] (q: Data) async -> Data? in
+				guard let self = self else { return nil }
+				return await self.dnsInterceptor.handleQueryAndCreateResponse(for: q)?.response
+			}
+			// 不调用 start()，避免走 SOCKS / LayerMinus
+			Task { [weak self] in
+				guard let self = self else { return }
+				// 等连接生命周期自然结束后清理（TCPConnection 内部在对端 FIN/RST 或空闲超时会 close）
+				await self.finishAndCleanup(key: key, dstIP: dstIP)
+			}
+		} else {
+			Task { [weak self] in
+				guard let self = self else { return }
+				await newConn.start()
+				await self.finishAndCleanup(key: key, dstIP: dstIP)
+			}
+		}
     }
     
     private func calculateBufferSizeForService(

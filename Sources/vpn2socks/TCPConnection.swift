@@ -10,10 +10,11 @@ import Network
 import Foundation
 
 private struct BackpressureMetrics {
-    var lastDataReceivedTime = Date()
-    var lastDataSentTime = Date()
-    var consecutiveIdleCycles = 0
-    var recentDataRate: Double = 0
+
+	var lastDataReceivedTime = Date()
+	var lastDataSentTime = Date()
+	var consecutiveIdleCycles = 0
+	var recentDataRate: Double = 0
     var peakDataRate: Double = 0
     var isActive = false
     
@@ -142,6 +143,19 @@ final actor TCPConnection {
     private var backpressure = BackpressureMetrics()
     private var trafficPattern = TrafficPattern()
     private var trafficType = TrafficType()
+
+	// MARK: - Local DNS-over-TCP mode
+	private enum LocalMode { case none, dns }
+	private var localMode: LocalMode = .none
+	private var localDNSBuffer = Data()
+	private var localDNSExpectedLen: Int? = nil
+	private var localDNSResponder: ((Data) async -> Data?)?
+	
+	/// 启用本地 DNS(TCP/53) 模式：handler 入参为“去掉2字节长度前缀”的 DNS 报文；返回同格式的 DNS 响应
+	public func configureLocalDNSResponder(_ handler: @escaping (Data) async -> Data?) async {
+		self.localMode = .dns
+		self.localDNSResponder = handler
+	}
     
     // 优化的缓冲区大小常量 - 改为静态常量
        private static let MIN_BUFFER = 4 * 1024
@@ -348,6 +362,7 @@ final actor TCPConnection {
             pendingBytesTotal = keep.reduce(0) { $0 + $1.count }
         }
     }
+
 
     private func handleClientRefusal() {
         // 差异化处理
@@ -1048,6 +1063,13 @@ final actor TCPConnection {
 
     // MARK: - Lifecycle
     func start() async {
+
+        // 本地 DNS 模式下不应启动 SOCKS（避免流入 LayerMinus）
+        if localMode == .dns {
+            await log("start() suppressed: Local DNS/TCP mode")
+            return
+        }
+
         guard socksConnection == nil else { return }
         
         // 在 start 时执行优化（init 中不能调用 actor-isolated 方法）
@@ -1505,12 +1527,18 @@ final actor TCPConnection {
         // 检查是否需要立即扩展缓冲区
         evaluateBufferExpansion()
         
-        // Forward data
-        if socksState == .established {
-            sendRawToSocks(payload)
-        } else {
-            appendToPending(payload)
-        }
+		// ✅ 本地 DNS(TCP) 模式：解析 2 字节长度前缀的帧，调用上层 responder，并原路回写
+		if localMode == .dns {
+			Task { await handleLocalDNSStream(payload) }
+			return
+		}
+
+		// 正常路径：转发给 SOCKS（未建立则进入 pending）
+		if socksState == .established {
+			sendRawToSocks(payload)
+		} else {
+			appendToPending(payload)
+		}
 
         // Process any buffered packets that are now in order
         processBufferedPackets()
@@ -1535,9 +1563,37 @@ final actor TCPConnection {
             scheduleDelayedAck()
         }
     }
-    
-    
-    private func processOutOfOrderPacket(payload: Data, sequenceNumber: UInt32) {
+
+	// MARK: - Local DNS/TCP framing
+	private func handleLocalDNSStream(_ data: Data) async {
+		guard localMode == .dns else { return }
+		localDNSBuffer.append(data)
+		// 可能一次到达多帧，循环处理
+		while true {
+			if localDNSExpectedLen == nil {
+				if localDNSBuffer.count < 2 { break }
+				let len = (Int(localDNSBuffer[0]) << 8) | Int(localDNSBuffer[1])
+				localDNSExpectedLen = len
+				localDNSBuffer.removeFirst(2)
+			}
+			guard let need = localDNSExpectedLen, localDNSBuffer.count >= need else { break }
+			let query = localDNSBuffer.prefix(need)
+			localDNSBuffer.removeFirst(need)
+			localDNSExpectedLen = nil
+
+			guard let responder = localDNSResponder else { continue }
+			if let dns = await responder(Data(query)) {
+				// 回写：2字节长度前缀 + DNS 响应体
+				var framed = Data()
+				let n = UInt16(dns.count)
+				framed.append(UInt8(n >> 8)); framed.append(UInt8(n & 0xFF))
+				framed.append(dns)
+				await writeToTunnel(payload: framed)
+			}
+		}
+	}
+
+	private func processOutOfOrderPacket(payload: Data, sequenceNumber: UInt32) {
         outOfOrderPacketCount += 1
 
         bufferOutOfOrderPacket(payload: payload, sequenceNumber: sequenceNumber)

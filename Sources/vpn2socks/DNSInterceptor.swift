@@ -41,79 +41,278 @@ final actor DNSInterceptor {
 
     // ✅ APNs 域名列表（支持直连的域名）
     private let apnsDomains: Set<String> = [
-            "conet.network",
-            "silentpass.io",
-            "openpgp.online",
+        "conet.network",
+        "silentpass.io",
+        "openpgp.online",
+        "comm100vue.com",
+        "comm100.io",
+        "doubleclick.net",
+        "googleadservices.com",
+        "googlesyndication.com",
+        "googletagmanager.com",
+        "googletagservices.com",
+        "google-analytics.com",
+        "googleanalytics.com",
+        "adsystem.com",
+        "adsrvr.org",
+        "onetrust.com",
+        "liadm.com",
+
+        // Facebook/Meta
+        "facebook-analytics.com",
+        "fbcdn.net",
+
+        // Amazon
+        "amazontrust.com",
+
+        // Microsoft
+        "adsrvr.org",
+        "bing.com",
+        "msftconnecttest.com",
+
+        // 通用广告网络
+        "adsrvr.org",
+        "adnxs.com",
+        "adzerk.net",
+        "pubmatic.com",
+        "criteo.com",
+        "criteo.net",
+        "casalemedia.com",
+        "openx.net",
+        "rubiconproject.com",
+        "serving-sys.com",
+        "taboola.com",
+        "outbrain.com",
+        "media.net",
+        "yieldmo.com",
+        "3lift.com",
+        "indexexchange.com",
+        "sovrn.com",
+        "sharethrough.com",
+        "spotx.tv",
+        "springserve.com",
+        "tremor.io",
+        "tribalfusion.com",
+        "undertone.com",
+        "yieldlab.net",
+        "yieldmanager.com",
+        "zedo.com",
+        "zemanta.com",
+
+        // 分析和跟踪
+        "scorecardresearch.com",
+        "quantserve.com",
+        "imrworldwide.com",
+        "nielsen.com",
+        "alexa.com",
+        "hotjar.com",
+        "mouseflow.com",
+        "luckyorange.com",
+        "clicktale.com",
+        "demdex.net",
+        "krxd.net",
+        "bluekai.com",
+        "exelator.com",
+        "mathtag.com",
+        "turn.com",
+        "acuityplatform.com",
+        "adform.net",
+        "bidswitch.net",
+        "contextweb.com",
+        "districtm.io",
+        "emxdgt.com",
+        "gumgum.com",
+        "improve-digital.com",
+        "inmobi.com",
+        "loopme.com",
+        "mobfox.com",
+        "nexage.com",
+        "rhythmone.com",
+        "smaato.com",
+        "smartadserver.com",
+        "stroeer.io",
+        "teads.tv",
+        "triplelift.com",
+        "verizonmedia.com",
+        "vertamedia.com",
+        "video.io",
+        "viralize.com",
+        "weborama.com",
+        "widespace.com",
+
+        // 中国广告网络
+        
+        "tanx.com",
+        "mediav.com",
+        "admaster.com.cn",
+        "dsp.com",
+        "vamaker.com",
+        "allyes.com",
+        "ipinyou.com",
+        "irs01.com",
+        "istreamsche.com",
+        "jusha.com",
+        "knet.cn",
+        "madserving.com",
+        "miaozhen.com",
+        "mmstat.com",
+        "moad.cn",
+        "mobaders.com",
+        "mydas.mobi",
+        "n.shifen.com",
+        "netease.gg",
+        "newrelic.com",
+        "nexac.com",
+        "ntalker.com",
+        "nylalobghyhirgh.com",
+        "o2omobi.com",
+        "oimagea2.ydstatic.com",
+        "optaim.com",
+        "optimix.asia",
+        "optimizely.com",
+        "overture.com",
+        "p0y.cn",
+        "pagead.l.google.com",
+        "pageadimg.l.google.com",
+        "pbcdn.com",
+        "pingdom.net",
+        "pixanalytics.com",
+        "ppjia55.com",
+        "punchbox.org",
+        "qchannel01.cn",
+        "qiyou.com",
+        "qtmojo.com",
+        "quantcount.com",
+
+        // 恶意软件和垃圾邮件
+        "2o7.net",
+        "omtrdc.net",
+        "everesttech.net",
+        "everest-tech.net",
+        "rubiconproject.com",
+        "adsafeprotected.com",
+        "adsymptotic.com",
+        "adtechjp.com",
+        "advertising.com",
+        "evidon.com",
+        "voicefive.com",
+        "buysellads.com",
+        "carbonads.com",
+        "zdbb.net",
+        "trackcmp.net",
+        
+
+        // 更多跟踪器
+        "mixpanel.com",
+        "kissmetrics.com",
+        "segment.com",
+        "segment.io",
+        "keen.io",
+        "amplitude.com",
+        "appsflyer.com",
+        "branch.io",
+        "adjust.com",
+        "kochava.com",
+        "tenjin.io",
+        "singular.net",
+        "apptentive.com",
+        "appboy.com",
+        "braze.com",
+        "customer.io",
+        "intercom.io",
+        "drift.com",
+        "zendesk.com",
         // Apple Push 相关
-            "conet.network",
-            "apple.com",
-            "push.apple.com",
-            "icloud.com",
-            "push-apple.com.akadns.net",
-            "silentpass.io",
-            "courier.push.apple.com",
-            "gateway.push.apple.com",
-            "gateway.sandbox.push.apple.com",
-            "gateway.icloud.com",
-            "bag.itunes.apple.com",
-            "init.itunes.apple.com",
-            "xp.apple.com",
-            "gsa.apple.com",
-            "gsp-ssl.ls.apple.com",
-            "gsp-ssl.ls-apple.com.akadns.net",
-            "mesu.apple.com",
-            "gdmf.apple.com",
-            "deviceenrollment.apple.com",
-            "mdmenrollment.apple.com",
-            "iprofiles.apple.com",
-            "ppq.apple.com",
-            
+        "conet.network",
+        "apple.com",
+        "push.apple.com",
+        "cdn-apple.com",
+        "cdnst.net",
+        "icloud.com",
+        "push-apple.com.akadns.net",
+        "amazon-adsystem.com",
+        "silentpass.io",
+        "ziffstatic.com",
+        "cdn.ziffstatic.com",
+        "courier.push.apple.com",
+        "gateway.push.apple.com",
+        "gateway.sandbox.push.apple.com",
+        "gateway.icloud.com",
+        "bag.itunes.apple.com",
+        "init.itunes.apple.com",
+        "xp.apple.com",
+		"icloud-content.com",
+        "gsa.apple.com",
+        "gsp-ssl.ls.apple.com",
+        "gsp-ssl.ls-apple.com.akadns.net",
+        "mesu.apple.com",
+        "gdmf.apple.com",
+        "deviceenrollment.apple.com",
+        "mdmenrollment.apple.com",
+        "iprofiles.apple.com",
+        "ppq.apple.com",
+        "baidu.com",
+        "bdstatic.com",
+
         // 🔥 微信（WeChat）相关域名
-            "wechat.com",
-            "weixin.qq.com",
-            "weixin110.qq.com",
-            "tenpay.com",
-            "mm.taobao.com",
-            "wx.qq.com",
-            "web.wechat.com",
-            "webpush.weixin.qq.com",
-            "qpic.cn",
-            "qlogo.cn",
-            "wx.gtimg.com",
-            "minorshort.weixin.qq.com",
-            "log.weixin.qq.com",
-            "szshort.weixin.qq.com",
-            "szminorshort.weixin.qq.com",
-            "szextshort.weixin.qq.com",
-            "hkshort.weixin.qq.com",
-            "hkminorshort.weixin.qq.com",
-            "hkextshort.weixin.qq.com",
-            "hklong.weixin.qq.com",
-            "sgshort.wechat.com",
-            "sgminorshort.wechat.com",
-            "sglong.wechat.com",
-            "usshort.wechat.com",
-            "usminorshort.wechat.com",
-            "uslong.wechat.com",
-            
-            // 微信支付
-            "pay.weixin.qq.com",
-            "payapp.weixin.qq.com",
-            
-            // 微信文件传输
-            "file.wx.qq.com",
-            "support.weixin.qq.com",
-            
-            // 微信 CDN
-            "mmbiz.qpic.cn",
-            "mmbiz.qlogo.cn",
-            "mmsns.qpic.cn",
-            
-            // 腾讯推送服务
-            "dns.weixin.qq.com",
-            "short.weixin.qq.com",
-            "long.weixin.qq.com",
-            
+        "wechat.com",
+        "weixin.qq.com",
+        "weixin110.qq.com",
+        "tenpay.com",
+        "mm.taobao.com",
+        "wx.qq.com",
+        "web.wechat.com",
+        "webpush.weixin.qq.com",
+        "qpic.cn",
+        "qlogo.cn",
+        "wx.gtimg.com",
+        "minorshort.weixin.qq.com",
+        "log.weixin.qq.com",
+        "szshort.weixin.qq.com",
+        "szminorshort.weixin.qq.com",
+        "szextshort.weixin.qq.com",
+        "hkshort.weixin.qq.com",
+        "hkminorshort.weixin.qq.com",
+        "hkextshort.weixin.qq.com",
+        "hklong.weixin.qq.com",
+        "sgshort.wechat.com",
+        "sgminorshort.wechat.com",
+        "sglong.wechat.com",
+        "usshort.wechat.com",
+        "usminorshort.wechat.com",
+        "uslong.wechat.com",
+
+        // 微信支付
+        "pay.weixin.qq.com",
+        "payapp.weixin.qq.com",
+
+        // 微信文件传输
+        "file.wx.qq.com",
+        "support.weixin.qq.com",
+
+        // 微信 CDN
+        "mmbiz.qpic.cn",
+        "mmbiz.qlogo.cn",
+        "mmsns.qpic.cn",
+        "sync.com",
+
+        // 腾讯推送服务
+        "dns.weixin.qq.com",
+        "short.weixin.qq.com",
+        "long.weixin.qq.com",
+
+        "doubleclick.net",
+        "pubmatic.com",
+        "adnxs.com",
+        "rubiconproject.com",
+
+        "adsrvr.org",
+        "criteo.com",
+
+        "taboola.com",
+        "yahoo.com",
+        "publicsuffix.org",
+		"amazonaws.com"
             
     ]
 
@@ -350,78 +549,152 @@ final actor DNSInterceptor {
         return (createTempFailResponse(for: queryData), nil)
     }
 
-    /// 查询上游DNS服务器
-    private func queryUpstreamDNS(queryData: Data, serverIP: String, domain: String) async -> Data? {
-        return await withCheckedContinuation { continuation in
-            // 创建UDP连接到上游DNS
-            let endpoint = NWEndpoint.Host(serverIP)
-            let port = NWEndpoint.Port(integerLiteral: 53)
-            
-            let connection = NWConnection(host: endpoint, port: port, using: .udp)
-            
-            // ✅ 修复：使用 @Sendable 闭包和线程安全的状态管理
-            let stateBox = StateBox()
-            
-            let timeoutTask = Task {
-                try? await Task.sleep(nanoseconds: UInt64(dnsQueryTimeout * 1_000_000_000))
-                if stateBox.tryComplete() {
-                    connection.cancel()
-                    continuation.resume(returning: nil)
+	/// 并发向所有上游 DoH 发送查询，最先成功的结果即返回；同时按响应中的 TTL 写入本地缓存
+    private func forwardToUpstreamDNS(_ dnsQuery: Data, domain: String) async -> Data? {
+        // 并发竞速
+        let servers = upstreamDNSServers
+        return await withTaskGroup(of: Data?.self) { group in
+            // 可选的轻微优先级：让 1.1.1.1 先发起（更快首包），其他紧随其后
+            for (idx, ip) in servers.enumerated() {
+                group.addTask { [weak self] in
+                    if idx > 0 { try? await Task.sleep(nanoseconds: 30_000_000) } // 30ms 微延迟
+                    return await self?.queryUpstreamDNS(queryData: dnsQuery, serverIP: ip, domain: domain)
                 }
             }
-            
-            connection.stateUpdateHandler = { [stateBox] state in
-                switch state {
-                case .ready:
-                    // 发送DNS查询
-                    connection.send(content: queryData, completion: .contentProcessed { [stateBox] error in
-                        if let error = error {
-                            logger.error("Failed to send DNS query to \(serverIP): \(error)")
-                            if stateBox.tryComplete() {
-                                timeoutTask.cancel()
-                                continuation.resume(returning: nil)
-                            }
-                            return
-                        }
-                        
-                        // 接收响应
-                        connection.receive(minimumIncompleteLength: 1, maximumLength: 512) { [stateBox] data, _, _, error in
-                            if stateBox.tryComplete() {
-                                timeoutTask.cancel()
-                                connection.cancel()
-                                
-                                if let error = error {
-                                    logger.error("Failed to receive DNS response from \(serverIP): \(error)")
-                                    continuation.resume(returning: nil)
-                                } else if let data = data {
-                                    logger.debug("Received DNS response from \(serverIP): \(data.count) bytes")
-                                    continuation.resume(returning: data)
-                                } else {
-                                    continuation.resume(returning: nil)
-                                }
-                            }
-                        }
-                    })
-                    
-                case .failed(let error):
-                    logger.error("DNS connection to \(serverIP) failed: \(error)")
-                    if stateBox.tryComplete() {
-                        timeoutTask.cancel()
-                        continuation.resume(returning: nil)
-                    }
-                    
-                case .cancelled:
-                    if stateBox.tryComplete() {
-                        timeoutTask.cancel()
-                        continuation.resume(returning: nil)
-                    }
-                    
-                default:
+            var winner: Data? = nil
+            for await result in group {
+                if let r = result {
+                    winner = r
+                    group.cancelAll()
                     break
                 }
             }
-            
-            connection.start(queue: .global(qos: .userInitiated))
+            // 写缓存（若能解析到 TTL）
+            if let resp = winner {
+                let ttl = extractMinTTL(from: resp) ?? dnsCacheTTL
+                cache(domain: domain, responseData: resp, ttl: ttl)
+            }
+            return winner
+        }
+    }
+
+    // MARK: - DoH helpers + TTL 解析
+    /// 将上游 IP 映射到常见 DoH 端点，默认使用 https://<ip>/dns-query
+    private func dohURL(for s: String) -> URL? {
+        if s == "8.8.8.8" || s == "8.8.4.4" { return URL(string: "https://dns.google/dns-query") }
+        if s == "1.1.1.1" || s == "1.0.0.1" { return URL(string: "https://1.1.1.1/dns-query") }
+        if s == "9.9.9.9" { return URL(string: "https://dns.quad9.net/dns-query") }
+        return URL(string: "https://\(s)/dns-query")
+    }
+
+	/// 解析最小 TTL（秒）。简单 DNS parser：跳过 Questions，读取 Answers 的 TTL，取最小值
+    private func extractMinTTL(from dns: Data) -> TimeInterval? {
+        // 最低头长度 12 字节
+        guard dns.count >= 12 else { return nil }
+        func u16(_ i: Int) -> Int { Int(dns[i]) << 8 | Int(dns[i+1]) }
+        let qd = u16(4)
+        let an = u16(6)
+        // 跳过 question 区
+		var off = 12
+		func skipName(_ start: Int) -> Int? {
+			var i = start
+			var safety = 0
+			while i < dns.count && safety < 256 {
+				let len = Int(dns[i])
+				if len == 0 { return i + 1 }
+				if (len & 0xC0) == 0xC0 { // 压缩指针
+					guard i + 1 < dns.count else { return nil }
+					return i + 2
+				}
+				i += 1 + len
+				safety += 1
+			}
+			return nil
+		}
+		for _ in 0..<qd {
+			guard let nameEnd = skipName(off) else { return nil }
+			off = nameEnd + 4 // type(2) + class(2)
+			if off > dns.count { return nil }
+		}
+		var minTTL: UInt32?
+		for _ in 0..<an {
+			guard let nameEnd = skipName(off) else { return minTTL.map { TimeInterval($0) } }
+			var p = nameEnd
+			guard p + 10 <= dns.count else { break } // type2+class2+ttl4+rdlen2
+			// 跳过 type,class
+			p += 4
+			// 读取 TTL
+			let ttl = (UInt32(dns[p]) << 24) | (UInt32(dns[p+1]) << 16) | (UInt32(dns[p+2]) << 8) | UInt32(dns[p+3])
+			p += 4
+			// 跳过 RDLENGTH + RDATA
+			let rdlen = (Int(dns[p]) << 8) | Int(dns[p+1])
+			p += 2
+			off = p + rdlen
+			minTTL = minTTL.map { min($0, ttl) } ?? ttl
+			if off > dns.count { break }
+		}
+		return minTTL.map { TimeInterval($0) }
+	}
+
+	// 写入缓存：以 "domain:qtype" 为 key，ttl 为上游答复中的最小 TTL
+	private func cache(domain: String, responseData: Data, ttl: TimeInterval) {
+		let qtype = extractQTypeFromResponse(responseData) ?? 1 /* A 记录兜底 */
+		let key = "\(domain):\(qtype)"
+		dnsCache[key] = DNSCacheEntry(response: responseData, timestamp: Date(), ttl: ttl)
+	}
+
+	// 从 DNS 报文（请求或响应）中解析第一个 Question 的 qtype
+	private func extractQTypeFromResponse(_ dns: Data) -> UInt16? {
+		guard dns.count >= 12 else { return nil }
+		// 跳过第一个 QNAME，然后读取 2 字节 QTYPE
+		func skipName(_ start: Int) -> Int? {
+			var i = start
+			var safety = 0
+			while i < dns.count && safety < 256 {
+				let len = Int(dns[i])
+				if len == 0 { return i + 1 }
+				if (len & 0xC0) == 0xC0 {
+					guard i + 1 < dns.count else { return nil }
+					return i + 2
+				}
+				i += 1 + len
+				safety += 1
+			}
+			return nil
+		}
+		// Questions 计数
+		let qd = (Int(dns[4]) << 8) | Int(dns[5])
+		guard qd > 0 else { return nil }
+		guard let nameEnd = skipName(12) else { return nil }
+		guard nameEnd + 2 <= dns.count else { return nil }
+		let qtype = (UInt16(dns[nameEnd]) << 8) | UInt16(dns[nameEnd + 1])
+		return qtype
+	}
+
+
+    /// DoH：POST application/dns-message
+    private func queryUpstreamDNS(queryData: Data, serverIP: String, domain: String) async -> Data? {
+        guard let url = dohURL(for: serverIP) else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/dns-message", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/dns-message", forHTTPHeaderField: "Accept")
+        req.httpBody = queryData
+
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.waitsForConnectivity = true
+        cfg.timeoutIntervalForRequest = dnsQueryTimeout
+        cfg.timeoutIntervalForResource = dnsQueryTimeout
+
+        do {
+            let (data, resp) = try await URLSession(configuration: cfg).data(for: req)
+            guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
+                return nil
+            }
+            return data
+        } catch {
+            logger.error("DoH request failed for \(domain): \(error.localizedDescription)")
+            return nil
         }
     }
 
