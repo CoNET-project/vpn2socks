@@ -224,33 +224,18 @@ final actor DNSInterceptor {
         "zendesk.com",
         // Apple Push 相关
         "conet.network",
-        "apple.com",
-        "push.apple.com",
-        "cdn-apple.com",
+
         "cdnst.net",
         "icloud.com",
-        "push-apple.com.akadns.net",
         "amazon-adsystem.com",
         "silentpass.io",
         "ziffstatic.com",
         "cdn.ziffstatic.com",
-        "courier.push.apple.com",
-        "gateway.push.apple.com",
-        "gateway.sandbox.push.apple.com",
         "gateway.icloud.com",
-        "bag.itunes.apple.com",
-        "init.itunes.apple.com",
-        "xp.apple.com",
 		"icloud-content.com",
-        "gsa.apple.com",
-        "gsp-ssl.ls.apple.com",
-        "gsp-ssl.ls-apple.com.akadns.net",
-        "mesu.apple.com",
-        "gdmf.apple.com",
-        "deviceenrollment.apple.com",
-        "mdmenrollment.apple.com",
-        "iprofiles.apple.com",
-        "ppq.apple.com",
+
+
+
         "baidu.com",
         "bdstatic.com",
 
@@ -411,12 +396,6 @@ final actor DNSInterceptor {
             }
         }
         
-        // 通配符匹配 Apple 推送相关域名
-        if normalized.contains("push.apple.com") ||
-           normalized.contains("gateway.apple.com") ||
-           normalized.hasSuffix(".push.apple.com") {
-            return true
-        }
         
         return false
     }
