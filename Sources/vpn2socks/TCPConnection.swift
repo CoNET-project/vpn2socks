@@ -160,19 +160,19 @@ final actor TCPConnection {
     // 优化的缓冲区大小常量 - 改为静态常量
        private static let MIN_BUFFER = 4 * 1024
        private static let DEFAULT_BUFFER = 64 * 1024
-       private static let MAX_BUFFER = 256 * 1024
-       private static let BURST_BUFFER = 512 * 1024
-       private static let YOUTUBE_BUFFER = 192 * 1024
+       private static let MAX_BUFFER = 64 * 1024
+       private static let BURST_BUFFER = 64 * 1024
+       private static let YOUTUBE_BUFFER = 64 * 1024
        
        // 新增的YouTube相关常量
-       private static let YOUTUBE_MAX_BUFFER = 256 * 1024  // YouTube最大缓冲
-       private static let YOUTUBE_EXPAND_STEP = 64 * 1024  // 每次扩展64KB
+       private static let YOUTUBE_MAX_BUFFER = 32 * 1024  // YouTube最大缓冲
+       private static let YOUTUBE_EXPAND_STEP = 32 * 1024  // 每次扩展64KB
        
        // 社交媒体专用缓冲区常量
        private static let SOCIAL_MIN_BUFFER = 32 * 1024
-       private static let SOCIAL_NORMAL_BUFFER = 96 * 1024
-       private static let SOCIAL_SCROLL_BUFFER = 64 * 1024
-       private static let SOCIAL_VIDEO_BUFFER = 128 * 1024
+       private static let SOCIAL_NORMAL_BUFFER = 32 * 1024
+       private static let SOCIAL_SCROLL_BUFFER = 32 * 1024
+       private static let SOCIAL_VIDEO_BUFFER = 32 * 1024
     
     
     

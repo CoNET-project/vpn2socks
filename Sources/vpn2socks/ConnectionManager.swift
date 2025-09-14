@@ -131,22 +131,22 @@ final actor ConnectionManager {
     private let statsInterval: TimeInterval = 30.0
 
     // CRITICAL: 降低限制以适应 iOS 内存约束
-    private let maxConnections = 60
+    private let maxConnections = 30
     private let connectionTimeout: TimeInterval = 45.0
     private let maxIdleTime: TimeInterval = 60.0
     
     // 内存管理阈值（MB）
     private let memoryNormalMB: UInt64 = 30
-    private let memoryWarningMB: UInt64 = 45
-    private let memoryCriticalMB: UInt64 = 55
-    private let memoryEmergencyMB: UInt64 = 60
+    private let memoryWarningMB: UInt64 = 35
+    private let memoryCriticalMB: UInt64 = 40
+    private let memoryEmergencyMB: UInt64 = 42
     
     // 止血模式
     private var shedding = false
     private var pausedReads = false
     private var dropNewConnections = false
     private var logSampleN = 1
-    private let maxConnsDuringShedding = 20
+    private let maxConnsDuringShedding = 15
     private var lastTrimTime = Date.distantPast
     private let trimCooldown: TimeInterval = 0.5
 
@@ -318,7 +318,6 @@ final actor ConnectionManager {
         
         startStatsTimer()
         startMemoryMonitor()
-        startHighFrequencyOptimizer()  // 新增
         startCleanupTask()
         startCleaner()
         startAdaptiveBufferTask()
@@ -330,20 +329,7 @@ final actor ConnectionManager {
         
         await readPackets()
     }
-    
-    // 新增：高频优化器（100ms检查）
-    private func startHighFrequencyOptimizer() {
-        highFrequencyOptimizer?.cancel()
-        highFrequencyOptimizer = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
-                guard let self = self else { break }
-                
-                // 批量优化所有连接
-                await self.optimizeAllConnectionsRapidly()
-            }
-        }
-    }
+
     
     private func optimizeAllConnectionsRapidly() async {
         let memoryMB = getCurrentMemoryUsageMB()
@@ -480,7 +466,7 @@ final actor ConnectionManager {
             await emergencyCleanup()
         } else if memoryMB >= memoryCriticalMB {
             logger.critical("⚠️ CRITICAL: Memory \(memoryMB)MB >= \(self.memoryCriticalMB)MB")
-            await trimConnections(targetMax: 10)
+            await trimConnections(targetMax: 6)
             dropNewConnections = true
         } else if memoryMB >= memoryWarningMB {
             logger.warning("⚠️ WARNING: Memory \(memoryMB)MB >= \(self.memoryWarningMB)MB")
@@ -1193,6 +1179,13 @@ final actor ConnectionManager {
         tcpConnections[key] = newConn
         stats.totalConnections += 1
         stats.activeConnections = tcpConnections.count
+
+		// Event-based: 每次新建連線時輸出一次結果
+		let memMB = getCurrentMemoryUsageMB()
+		logger.info("[Event] NewConn \(key) " +
+					"active=\(self.tcpConnections.count)/\(self.maxConnections) " +
+					"mem=\(memMB)MB dropNew=\(self.dropNewConnections) buffer=\(bufferSize)")
+
 
         await newConn.acceptClientSyn(tcpHeaderAndOptions: Data(tcpSlice))
 
