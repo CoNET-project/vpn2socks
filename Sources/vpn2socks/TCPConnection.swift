@@ -843,46 +843,6 @@ final actor TCPConnection {
         }
     }
     
-    // MARK: - 高频监控任务（50ms）
-    private func startHighFrequencyMonitor() {
-        highFrequencyMonitorTask?.cancel()
-        highFrequencyMonitorTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 50_000_000)  // 50ms
-                guard let self = self else { break }
-                
-                await self.rapidAdjustment()
-            }
-        }
-    }
-    
-    private func rapidAdjustment() {
-        let now = Date()
-        let idleTime = now.timeIntervalSince(backpressure.lastDataReceivedTime)
-        let usage = bufferedBytesForWindow()
-        let rate = Double(usage) / Double(recvBufferLimit)
-        
-        // 修正：确保100ms判断生效
-        if idleTime > 0.1 {  // 100ms
-            if rate < 0.1 && recvBufferLimit > getMinBufferSize() {
-                let minSize = getMinBufferSize()
-                recvBufferLimit = minSize
-                updateAdvertisedWindow()
-                log("[FastShrink] 100ms idle detected, shrunk to \(minSize)")
-                return
-            }
-        }
-        
-        // 预防性扩容应该更保守
-        if rate > 0.9 && isReallyActive() && backpressure.growthTrend > 0.3 {
-            let target = min(MAX_BUFFER, recvBufferLimit + 16 * 1024)  // 渐进式增长
-            if target > recvBufferLimit {
-                recvBufferLimit = target
-                updateAdvertisedWindow()
-                log("[Preventive] Buffer expanded by 16KB to \(target)")
-            }
-        }
-    }
 
     // MARK: - Initialization
     init(
@@ -1078,9 +1038,7 @@ final actor TCPConnection {
         } else if isSocialMediaConnection() {
             optimizeForSocialMedia()
         }
-        
-        // 启动高频监控
-        startHighFrequencyMonitor()
+    
         
         // 启动预热
         Task {
