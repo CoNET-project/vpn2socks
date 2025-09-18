@@ -2756,11 +2756,15 @@ final actor TCPConnection {
         return ~UInt16(sum & 0xFFFF)
     }
 
-    private func log(_ message: String) {
-        
-//        let context = socksState == .established ? "[EST]" : "[PRE]"
-//        NSLog("[TCPConnection \(key)] \(context) \(message)")
+#if DEBUG
+@inline(__always)
+    private func log(_ msg: @autoclosure () -> String) {
+        NSLog("[TCPConnection] %@", msg())
     }
+#else
+    @inline(__always)
+    private func log(_ msg: @autoclosure () -> String) { }
+#endif
 
     func onInboundFin(seq: UInt32) async {
         if seq == clientSequenceNumber {

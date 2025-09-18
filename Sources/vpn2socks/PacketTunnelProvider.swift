@@ -52,72 +52,81 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         
         // ✅ 修改路由配置：默认走隧道，后续通过 excludedRoutes 进行精确绕行
         v4.includedRoutes = [
-            //NEIPv4Route.default()
+            NEIPv4Route.default(),
 			NEIPv4Route(destinationAddress: "172.16.0.2", subnetMask: "255.255.255.255"),
-            NEIPv4Route(destinationAddress: "198.18.0.0", subnetMask: "255.254.0.0") // 仅 FakeIP /15
+//             NEIPv4Route(destinationAddress: "198.18.0.0", subnetMask: "255.254.0.0"), // 仅 FakeIP /15
+//             NEIPv4Route(destinationAddress: "149.154.160.0", subnetMask: "255.255.240.0"), // 149.154.160.0/20
+//
+//             NEIPv4Route(destinationAddress: "91.108.4.0",   subnetMask: "255.255.252.0"),  // 91.108.4.0/22
+//             NEIPv4Route(destinationAddress: "91.108.8.0",   subnetMask: "255.255.252.0"),  // 91.108.8.0/22
+//             NEIPv4Route(destinationAddress: "91.108.12.0",  subnetMask: "255.255.252.0"),  // 91.108.12.0/22
+//             NEIPv4Route(destinationAddress: "91.108.16.0",  subnetMask: "255.255.252.0"),  // 91.108.16.0/22
+//             NEIPv4Route(destinationAddress: "91.108.20.0",  subnetMask: "255.255.252.0"),  // 91.108.20.0/22
+//             NEIPv4Route(destinationAddress: "91.108.56.0",  subnetMask: "255.255.252.0")   // 91.108.56.0/22
+            
         ]
         NSLog("[PacketTunnelProvider] Routing includes 198.18.0.0/15 for fake IPs")
         
         // ✅ 新增：排除苹果推送网段和其他本地网络
-//        v4.excludedRoutes = [
-//            // 苹果推送服务网段 (17.0.0.0/8) - 核心APNs网段
-//            NEIPv4Route(destinationAddress: "17.0.0.0", subnetMask: "255.0.0.0"),
-//            
-//            // 本地网络
-//            NEIPv4Route(destinationAddress: "192.168.0.0", subnetMask: "255.255.0.0"),
-//            NEIPv4Route(destinationAddress: "10.0.0.0", subnetMask: "255.0.0.0"),
-//            NEIPv4Route(destinationAddress: "127.0.0.0", subnetMask: "255.0.0.0"),
-//            NEIPv4Route(destinationAddress: "169.254.0.0", subnetMask: "255.255.0.0"),
-//            // 其他苹果服务网段
-//            NEIPv4Route(destinationAddress: "23.0.0.0", subnetMask: "255.0.0.0"),        // Apple CDN
-//            NEIPv4Route(destinationAddress: "143.224.0.0", subnetMask: "255.240.0.0"),   // Apple 服务
-//            NEIPv4Route(destinationAddress: "144.178.0.0", subnetMask: "255.254.0.0"),   // Apple 服务备用
-//            NEIPv4Route(destinationAddress: "199.47.192.0", subnetMask: "255.255.224.0"), // Apple 推送备用
-//            NEIPv4Route(destinationAddress: "38.102.126.50", subnetMask: "255.0.0.0"),
-//            NEIPv4Route(destinationAddress: "172.67.215.169", subnetMask: "255.255.255.0"),
-//            NEIPv4Route(destinationAddress: "1.1.1.1", subnetMask: "255.255.255.0"),
-//            NEIPv4Route(destinationAddress: "8.8.8.8", subnetMask: "255.255.255.0"),
-//            NEIPv4Route(destinationAddress: "208.67.222.222", subnetMask: "255.255.255.0"),
-//            // 🔥 腾讯/微信 IP 段
-//                NEIPv4Route(destinationAddress: "101.32.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
-//                NEIPv4Route(destinationAddress: "101.33.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
-//                NEIPv4Route(destinationAddress: "101.89.0.0", subnetMask: "255.255.0.0"),     // 微信
-//                NEIPv4Route(destinationAddress: "101.91.0.0", subnetMask: "255.255.0.0"),     // 微信
-//                NEIPv4Route(destinationAddress: "101.226.0.0", subnetMask: "255.255.0.0"),    // 微信
-//                NEIPv4Route(destinationAddress: "101.227.0.0", subnetMask: "255.255.0.0"),    // 微信
-//                NEIPv4Route(destinationAddress: "103.7.28.0", subnetMask: "255.255.252.0"),   // 微信海外
-//                NEIPv4Route(destinationAddress: "109.244.0.0", subnetMask: "255.255.0.0"),    // 腾讯云
-//                NEIPv4Route(destinationAddress: "110.52.193.0", subnetMask: "255.255.255.0"), // 微信
-//                NEIPv4Route(destinationAddress: "110.53.0.0", subnetMask: "255.255.0.0"),     // 微信
-//                NEIPv4Route(destinationAddress: "111.30.0.0", subnetMask: "255.254.0.0"),     // 腾讯
-//                NEIPv4Route(destinationAddress: "112.53.0.0", subnetMask: "255.255.0.0"),     // 微信
-//                NEIPv4Route(destinationAddress: "112.60.0.0", subnetMask: "255.252.0.0"),     // 微信
-//                NEIPv4Route(destinationAddress: "112.64.0.0", subnetMask: "255.192.0.0"),     // 微信
-//                NEIPv4Route(destinationAddress: "112.90.0.0", subnetMask: "255.254.0.0"),     // 腾讯
-//                NEIPv4Route(destinationAddress: "113.96.0.0", subnetMask: "255.224.0.0"),     // 腾讯
-//                NEIPv4Route(destinationAddress: "115.159.0.0", subnetMask: "255.255.0.0"),    // 腾讯云
-//                NEIPv4Route(destinationAddress: "117.184.0.0", subnetMask: "255.248.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "119.28.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
-//                NEIPv4Route(destinationAddress: "119.29.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
-//                NEIPv4Route(destinationAddress: "119.147.0.0", subnetMask: "255.255.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "120.198.0.0", subnetMask: "255.255.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "120.232.0.0", subnetMask: "255.252.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "121.51.0.0", subnetMask: "255.255.0.0"),     // 腾讯
-//                NEIPv4Route(destinationAddress: "129.226.0.0", subnetMask: "255.255.0.0"),    // 腾讯云国际
-//                NEIPv4Route(destinationAddress: "140.206.0.0", subnetMask: "255.255.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "140.207.0.0", subnetMask: "255.255.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "150.109.0.0", subnetMask: "255.255.0.0"),    // 腾讯云
-//                NEIPv4Route(destinationAddress: "162.62.0.0", subnetMask: "255.255.0.0"),     // 腾讯云海外
-//                NEIPv4Route(destinationAddress: "180.96.0.0", subnetMask: "255.254.0.0"),     // 腾讯
-//                NEIPv4Route(destinationAddress: "180.163.0.0", subnetMask: "255.255.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "182.254.0.0", subnetMask: "255.255.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "183.192.0.0", subnetMask: "255.192.0.0"),    // 腾讯
-//                NEIPv4Route(destinationAddress: "203.205.128.0", subnetMask: "255.255.128.0"), // 腾讯
-//                NEIPv4Route(destinationAddress: "211.95.0.0", subnetMask: "255.255.0.0"),     // 腾讯
-//                NEIPv4Route(destinationAddress: "220.196.0.0", subnetMask: "255.252.0.0"),    // 腾讯
-//                
-//        ]
-//        
+        v4.excludedRoutes = [
+            // 苹果推送服务网段 (17.0.0.0/8) - 核心APNs网段
+            NEIPv4Route(destinationAddress: "17.0.0.0", subnetMask: "255.0.0.0"),
+            
+            // 本地网络
+            NEIPv4Route(destinationAddress: "192.168.0.0", subnetMask: "255.255.0.0"),
+            NEIPv4Route(destinationAddress: "10.0.0.0", subnetMask: "255.0.0.0"),
+            NEIPv4Route(destinationAddress: "127.0.0.0", subnetMask: "255.0.0.0"),
+            NEIPv4Route(destinationAddress: "169.254.0.0", subnetMask: "255.255.0.0"),
+            // 其他苹果服务网段
+            NEIPv4Route(destinationAddress: "23.0.0.0", subnetMask: "255.0.0.0"),        // Apple CDN
+            NEIPv4Route(destinationAddress: "143.224.0.0", subnetMask: "255.240.0.0"),   // Apple 服务
+            NEIPv4Route(destinationAddress: "144.178.0.0", subnetMask: "255.254.0.0"),   // Apple 服务备用
+            NEIPv4Route(destinationAddress: "199.47.192.0", subnetMask: "255.255.224.0"), // Apple 推送备用
+            NEIPv4Route(destinationAddress: "38.102.126.50", subnetMask: "255.0.0.0"),
+            NEIPv4Route(destinationAddress: "172.67.215.169", subnetMask: "255.255.255.0"),
+            NEIPv4Route(destinationAddress: "1.1.1.1", subnetMask: "255.255.255.0"),
+            NEIPv4Route(destinationAddress: "8.8.8.8", subnetMask: "255.255.255.0"),
+            NEIPv4Route(destinationAddress: "208.67.222.222", subnetMask: "255.255.255.0"),
+            // 🔥 腾讯/微信 IP 段
+                NEIPv4Route(destinationAddress: "101.32.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
+                NEIPv4Route(destinationAddress: "101.33.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
+                NEIPv4Route(destinationAddress: "101.89.0.0", subnetMask: "255.255.0.0"),     // 微信
+                NEIPv4Route(destinationAddress: "101.91.0.0", subnetMask: "255.255.0.0"),     // 微信
+                NEIPv4Route(destinationAddress: "101.226.0.0", subnetMask: "255.255.0.0"),    // 微信
+                NEIPv4Route(destinationAddress: "101.227.0.0", subnetMask: "255.255.0.0"),    // 微信
+                NEIPv4Route(destinationAddress: "103.7.28.0", subnetMask: "255.255.252.0"),   // 微信海外
+                NEIPv4Route(destinationAddress: "109.244.0.0", subnetMask: "255.255.0.0"),    // 腾讯云
+                NEIPv4Route(destinationAddress: "110.52.193.0", subnetMask: "255.255.255.0"), // 微信
+                NEIPv4Route(destinationAddress: "110.53.0.0", subnetMask: "255.255.0.0"),     // 微信
+                NEIPv4Route(destinationAddress: "111.30.0.0", subnetMask: "255.254.0.0"),     // 腾讯
+                NEIPv4Route(destinationAddress: "112.53.0.0", subnetMask: "255.255.0.0"),     // 微信
+                NEIPv4Route(destinationAddress: "112.60.0.0", subnetMask: "255.252.0.0"),     // 微信
+                NEIPv4Route(destinationAddress: "112.64.0.0", subnetMask: "255.192.0.0"),     // 微信
+                NEIPv4Route(destinationAddress: "112.90.0.0", subnetMask: "255.254.0.0"),     // 腾讯
+                NEIPv4Route(destinationAddress: "113.96.0.0", subnetMask: "255.224.0.0"),     // 腾讯
+                NEIPv4Route(destinationAddress: "115.159.0.0", subnetMask: "255.255.0.0"),    // 腾讯云
+                NEIPv4Route(destinationAddress: "117.184.0.0", subnetMask: "255.248.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "119.28.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
+                NEIPv4Route(destinationAddress: "119.29.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
+                NEIPv4Route(destinationAddress: "119.147.0.0", subnetMask: "255.255.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "120.198.0.0", subnetMask: "255.255.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "120.232.0.0", subnetMask: "255.252.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "121.51.0.0", subnetMask: "255.255.0.0"),     // 腾讯
+                NEIPv4Route(destinationAddress: "129.226.0.0", subnetMask: "255.255.0.0"),    // 腾讯云国际
+                NEIPv4Route(destinationAddress: "140.206.0.0", subnetMask: "255.255.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "140.207.0.0", subnetMask: "255.255.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "150.109.0.0", subnetMask: "255.255.0.0"),    // 腾讯云
+                NEIPv4Route(destinationAddress: "162.62.0.0", subnetMask: "255.255.0.0"),     // 腾讯云海外
+                NEIPv4Route(destinationAddress: "180.96.0.0", subnetMask: "255.254.0.0"),     // 腾讯
+                NEIPv4Route(destinationAddress: "180.163.0.0", subnetMask: "255.255.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "182.254.0.0", subnetMask: "255.255.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "183.192.0.0", subnetMask: "255.192.0.0"),    // 腾讯
+                NEIPv4Route(destinationAddress: "203.205.128.0", subnetMask: "255.255.128.0"), // 腾讯
+                NEIPv4Route(destinationAddress: "211.95.0.0", subnetMask: "255.255.0.0"),     // 腾讯
+                NEIPv4Route(destinationAddress: "220.196.0.0", subnetMask: "255.252.0.0"),    // 腾讯
+                
+        ]
+        
         
         let extraCIDRs: [String] = {
             if let a = options?["LM.extraExcludedCIDRs"] as? [String] { return a }
