@@ -131,22 +131,22 @@ final actor ConnectionManager {
     private let statsInterval: TimeInterval = 30.0
 
     // CRITICAL: 降低限制以适应 iOS 内存约束
-    private let maxConnections = 30
+    private let maxConnections = 60
     private let connectionTimeout: TimeInterval = 45.0
     private let maxIdleTime: TimeInterval = 60.0
     
     // 内存管理阈值（MB）
     private let memoryNormalMB: UInt64 = 30
-    private let memoryWarningMB: UInt64 = 35
-    private let memoryCriticalMB: UInt64 = 40
-    private let memoryEmergencyMB: UInt64 = 42
+    private let memoryWarningMB: UInt64 = 45
+    private let memoryCriticalMB: UInt64 = 55
+    private let memoryEmergencyMB: UInt64 = 60
     
     // 止血模式
     private var shedding = false
     private var pausedReads = false
     private var dropNewConnections = false
     private var logSampleN = 1
-    private let maxConnsDuringShedding = 15
+    private let maxConnsDuringShedding = 20
     private var lastTrimTime = Date.distantPast
     private let trimCooldown: TimeInterval = 0.5
 
@@ -318,6 +318,7 @@ final actor ConnectionManager {
         
         startStatsTimer()
         startMemoryMonitor()
+        startHighFrequencyOptimizer()  // 新增
         startCleanupTask()
         startCleaner()
         startAdaptiveBufferTask()
@@ -329,7 +330,20 @@ final actor ConnectionManager {
         
         await readPackets()
     }
-
+    
+    // 新增：高频优化器（100ms检查）
+    private func startHighFrequencyOptimizer() {
+        highFrequencyOptimizer?.cancel()
+        highFrequencyOptimizer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
+                guard let self = self else { break }
+                
+                // 批量优化所有连接
+                await self.optimizeAllConnectionsRapidly()
+            }
+        }
+    }
     
     private func optimizeAllConnectionsRapidly() async {
         let memoryMB = getCurrentMemoryUsageMB()
@@ -466,7 +480,7 @@ final actor ConnectionManager {
             await emergencyCleanup()
         } else if memoryMB >= memoryCriticalMB {
             logger.critical("⚠️ CRITICAL: Memory \(memoryMB)MB >= \(self.memoryCriticalMB)MB")
-            await trimConnections(targetMax: 6)
+            await trimConnections(targetMax: 10)
             dropNewConnections = true
         } else if memoryMB >= memoryWarningMB {
             logger.warning("⚠️ WARNING: Memory \(memoryMB)MB >= \(self.memoryWarningMB)MB")
@@ -937,20 +951,10 @@ final actor ConnectionManager {
     }
 
     // MARK: - TCP
-    
-    private var tcpDNSBuffers: [String: Data] = [:]   // 以四元组做key的收包缓冲
-    private func flowKey(_ ip: IPv4Packet, _ tcp: TCPSegment) -> String {
-        "\(ip.sourceAddress):\(tcp.sourcePort)->\(ip.destinationAddress):\(tcp.destinationPort)"
-    }
-    
-    
-    
 
     private func handleTCPPacket(_ ipPacket: IPv4Packet) async {
         guard let tcpSegment = TCPSegment(data: ipPacket.payload) else { return }
         
-
-
         // ✅ 检查目标IP是否为APNs网段
         if isAPNsIP(ipPacket.destinationAddress) {
             stats.apnsBypassedConnections += 1
@@ -1030,15 +1034,6 @@ final actor ConnectionManager {
         }
 
         if let connection = tcpConnections[key] {
-
-            // 🔸拦截发往 fakeDNSServer:53 的 TCP 连接，在“收包路径”开启本地 DNS 模式
-            if ipPacket.destinationAddress == self.fakeDNSServer && tcpSegment.destinationPort == 53 {
-                await connection.configureLocalDNSResponder { [weak self] rawQuery in
-                    guard let self = self else { return nil }
-                    // 复用 UDP 的统一决策与 TTL 缓存逻辑（命中 apnsDomains 才直连 DoH）
-                    return await self.dnsInterceptor.handleQueryAndCreateResponse(for: rawQuery)?.response
-                }
-            }
             await handleEstablishedConnection(connection: connection, tcpSegment: tcpSegment)
         } else {
             handleOrphanPacket(key: key, tcpSegment: tcpSegment)
@@ -1180,38 +1175,17 @@ final actor ConnectionManager {
         stats.totalConnections += 1
         stats.activeConnections = tcpConnections.count
 
-		// Event-based: 每次新建連線時輸出一次結果
-		let memMB = getCurrentMemoryUsageMB()
-		logger.info("[Event] NewConn \(key) " +
-					"active=\(self.tcpConnections.count)/\(self.maxConnections) " +
-					"mem=\(memMB)MB dropNew=\(self.dropNewConnections) buffer=\(bufferSize)")
-
-
         await newConn.acceptClientSyn(tcpHeaderAndOptions: Data(tcpSlice))
 
         if stats.totalConnections % 10 == 0 {
             logger.debug("[Adaptive] Buffer size: \(bufferSize) bytes for \(self.tcpConnections.count)/\(self.maxConnections) connections")
         }
         
-		// 若为 TCP/53→fakeDNS，走本地 DNS 模式；否则保持原逻辑
-		if dstIP == self.fakeDNSServer && tcpSegment.destinationPort == 53 {
-			await newConn.configureLocalDNSResponder { [weak self] (q: Data) async -> Data? in
-				guard let self = self else { return nil }
-				return await self.dnsInterceptor.handleQueryAndCreateResponse(for: q)?.response
-			}
-			// 不调用 start()，避免走 SOCKS / LayerMinus
-			Task { [weak self] in
-				guard let self = self else { return }
-				// 等连接生命周期自然结束后清理（TCPConnection 内部在对端 FIN/RST 或空闲超时会 close）
-				await self.finishAndCleanup(key: key, dstIP: dstIP)
-			}
-		} else {
-			Task { [weak self] in
-				guard let self = self else { return }
-				await newConn.start()
-				await self.finishAndCleanup(key: key, dstIP: dstIP)
-			}
-		}
+        Task { [weak self] in
+            guard let self = self else { return }
+            await newConn.start()
+            await self.finishAndCleanup(key: key, dstIP: dstIP)
+        }
     }
     
     private func calculateBufferSizeForService(

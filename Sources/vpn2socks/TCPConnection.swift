@@ -10,11 +10,10 @@ import Network
 import Foundation
 
 private struct BackpressureMetrics {
-
-	var lastDataReceivedTime = Date()
-	var lastDataSentTime = Date()
-	var consecutiveIdleCycles = 0
-	var recentDataRate: Double = 0
+    var lastDataReceivedTime = Date()
+    var lastDataSentTime = Date()
+    var consecutiveIdleCycles = 0
+    var recentDataRate: Double = 0
     var peakDataRate: Double = 0
     var isActive = false
     
@@ -143,36 +142,23 @@ final actor TCPConnection {
     private var backpressure = BackpressureMetrics()
     private var trafficPattern = TrafficPattern()
     private var trafficType = TrafficType()
-
-	// MARK: - Local DNS-over-TCP mode
-	private enum LocalMode { case none, dns }
-	private var localMode: LocalMode = .none
-	private var localDNSBuffer = Data()
-	private var localDNSExpectedLen: Int? = nil
-	private var localDNSResponder: ((Data) async -> Data?)?
-	
-	/// 启用本地 DNS(TCP/53) 模式：handler 入参为“去掉2字节长度前缀”的 DNS 报文；返回同格式的 DNS 响应
-	public func configureLocalDNSResponder(_ handler: @escaping (Data) async -> Data?) async {
-		self.localMode = .dns
-		self.localDNSResponder = handler
-	}
     
     // 优化的缓冲区大小常量 - 改为静态常量
        private static let MIN_BUFFER = 4 * 1024
        private static let DEFAULT_BUFFER = 64 * 1024
-       private static let MAX_BUFFER = 64 * 1024
-       private static let BURST_BUFFER = 64 * 1024
-       private static let YOUTUBE_BUFFER = 64 * 1024
+       private static let MAX_BUFFER = 256 * 1024
+       private static let BURST_BUFFER = 512 * 1024
+       private static let YOUTUBE_BUFFER = 192 * 1024
        
        // 新增的YouTube相关常量
-       private static let YOUTUBE_MAX_BUFFER = 32 * 1024  // YouTube最大缓冲
-       private static let YOUTUBE_EXPAND_STEP = 32 * 1024  // 每次扩展64KB
+       private static let YOUTUBE_MAX_BUFFER = 256 * 1024  // YouTube最大缓冲
+       private static let YOUTUBE_EXPAND_STEP = 64 * 1024  // 每次扩展64KB
        
        // 社交媒体专用缓冲区常量
        private static let SOCIAL_MIN_BUFFER = 32 * 1024
-       private static let SOCIAL_NORMAL_BUFFER = 32 * 1024
-       private static let SOCIAL_SCROLL_BUFFER = 32 * 1024
-       private static let SOCIAL_VIDEO_BUFFER = 32 * 1024
+       private static let SOCIAL_NORMAL_BUFFER = 96 * 1024
+       private static let SOCIAL_SCROLL_BUFFER = 64 * 1024
+       private static let SOCIAL_VIDEO_BUFFER = 128 * 1024
     
     
     
@@ -362,7 +348,6 @@ final actor TCPConnection {
             pendingBytesTotal = keep.reduce(0) { $0 + $1.count }
         }
     }
-
 
     private func handleClientRefusal() {
         // 差异化处理
@@ -843,6 +828,46 @@ final actor TCPConnection {
         }
     }
     
+    // MARK: - 高频监控任务（50ms）
+    private func startHighFrequencyMonitor() {
+        highFrequencyMonitorTask?.cancel()
+        highFrequencyMonitorTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 50_000_000)  // 50ms
+                guard let self = self else { break }
+                
+                await self.rapidAdjustment()
+            }
+        }
+    }
+    
+    private func rapidAdjustment() {
+        let now = Date()
+        let idleTime = now.timeIntervalSince(backpressure.lastDataReceivedTime)
+        let usage = bufferedBytesForWindow()
+        let rate = Double(usage) / Double(recvBufferLimit)
+        
+        // 修正：确保100ms判断生效
+        if idleTime > 0.1 {  // 100ms
+            if rate < 0.1 && recvBufferLimit > getMinBufferSize() {
+                let minSize = getMinBufferSize()
+                recvBufferLimit = minSize
+                updateAdvertisedWindow()
+                log("[FastShrink] 100ms idle detected, shrunk to \(minSize)")
+                return
+            }
+        }
+        
+        // 预防性扩容应该更保守
+        if rate > 0.9 && isReallyActive() && backpressure.growthTrend > 0.3 {
+            let target = min(MAX_BUFFER, recvBufferLimit + 16 * 1024)  // 渐进式增长
+            if target > recvBufferLimit {
+                recvBufferLimit = target
+                updateAdvertisedWindow()
+                log("[Preventive] Buffer expanded by 16KB to \(target)")
+            }
+        }
+    }
 
     // MARK: - Initialization
     init(
@@ -1023,13 +1048,6 @@ final actor TCPConnection {
 
     // MARK: - Lifecycle
     func start() async {
-
-        // 本地 DNS 模式下不应启动 SOCKS（避免流入 LayerMinus）
-        if localMode == .dns {
-            await log("start() suppressed: Local DNS/TCP mode")
-            return
-        }
-
         guard socksConnection == nil else { return }
         
         // 在 start 时执行优化（init 中不能调用 actor-isolated 方法）
@@ -1038,7 +1056,9 @@ final actor TCPConnection {
         } else if isSocialMediaConnection() {
             optimizeForSocialMedia()
         }
-    
+        
+        // 启动高频监控
+        startHighFrequencyMonitor()
         
         // 启动预热
         Task {
@@ -1485,18 +1505,12 @@ final actor TCPConnection {
         // 检查是否需要立即扩展缓冲区
         evaluateBufferExpansion()
         
-		// ✅ 本地 DNS(TCP) 模式：解析 2 字节长度前缀的帧，调用上层 responder，并原路回写
-		if localMode == .dns {
-			Task { await handleLocalDNSStream(payload) }
-			return
-		}
-
-		// 正常路径：转发给 SOCKS（未建立则进入 pending）
-		if socksState == .established {
-			sendRawToSocks(payload)
-		} else {
-			appendToPending(payload)
-		}
+        // Forward data
+        if socksState == .established {
+            sendRawToSocks(payload)
+        } else {
+            appendToPending(payload)
+        }
 
         // Process any buffered packets that are now in order
         processBufferedPackets()
@@ -1521,37 +1535,9 @@ final actor TCPConnection {
             scheduleDelayedAck()
         }
     }
-
-	// MARK: - Local DNS/TCP framing
-	private func handleLocalDNSStream(_ data: Data) async {
-		guard localMode == .dns else { return }
-		localDNSBuffer.append(data)
-		// 可能一次到达多帧，循环处理
-		while true {
-			if localDNSExpectedLen == nil {
-				if localDNSBuffer.count < 2 { break }
-				let len = (Int(localDNSBuffer[0]) << 8) | Int(localDNSBuffer[1])
-				localDNSExpectedLen = len
-				localDNSBuffer.removeFirst(2)
-			}
-			guard let need = localDNSExpectedLen, localDNSBuffer.count >= need else { break }
-			let query = localDNSBuffer.prefix(need)
-			localDNSBuffer.removeFirst(need)
-			localDNSExpectedLen = nil
-
-			guard let responder = localDNSResponder else { continue }
-			if let dns = await responder(Data(query)) {
-				// 回写：2字节长度前缀 + DNS 响应体
-				var framed = Data()
-				let n = UInt16(dns.count)
-				framed.append(UInt8(n >> 8)); framed.append(UInt8(n & 0xFF))
-				framed.append(dns)
-				await writeToTunnel(payload: framed)
-			}
-		}
-	}
-
-	private func processOutOfOrderPacket(payload: Data, sequenceNumber: UInt32) {
+    
+    
+    private func processOutOfOrderPacket(payload: Data, sequenceNumber: UInt32) {
         outOfOrderPacketCount += 1
 
         bufferOutOfOrderPacket(payload: payload, sequenceNumber: sequenceNumber)
@@ -2756,15 +2742,11 @@ final actor TCPConnection {
         return ~UInt16(sum & 0xFFFF)
     }
 
-#if DEBUG
-@inline(__always)
-    private func log(_ msg: @autoclosure () -> String) {
-        NSLog("[TCPConnection] %@", msg())
+    private func log(_ message: String) {
+        
+//        let context = socksState == .established ? "[EST]" : "[PRE]"
+//        NSLog("[TCPConnection \(key)] \(context) \(message)")
     }
-#else
-    @inline(__always)
-    private func log(_ msg: @autoclosure () -> String) { }
-#endif
 
     func onInboundFin(seq: UInt32) async {
         if seq == clientSequenceNumber {

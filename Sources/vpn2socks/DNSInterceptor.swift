@@ -139,6 +139,8 @@ final actor DNSInterceptor {
         "viralize.com",
         "weborama.com",
         "widespace.com",
+        "mzstatic.com",
+        "apple.com",
 
         // 中国广告网络
         
@@ -353,11 +355,11 @@ final actor DNSInterceptor {
             self.fakeIPToDomainMap = ipToDomain
             self.domainToFakeIPMap  = domainToIP
             alloc.restoreCursor(rangeIndex: blob.rangeIndex, nextIP: blob.nextIP)
-            logger.info("Restored \(ipToDomain.count) mappings, cursor=(range=\(blob.rangeIndex), nextIP=\(blob.nextIP)))")
+            logger.info("DNSInterceptor Restored \(ipToDomain.count) mappings, cursor=(range=\(blob.rangeIndex), nextIP=\(blob.nextIP)))")
         }
 
         self.allocator = alloc
-        logger.info("Initialized with lazy FakeIPAllocator (RFC2544 /15) + intelligent DNS proxy")
+        logger.info("DNSInterceptor Initialized with lazy FakeIPAllocator (RFC2544 /15) + intelligent DNS proxy")
         
         // ✅ 修复：使用 Task 包装异步调用
         Task { [weak self] in
@@ -386,6 +388,7 @@ final actor DNSInterceptor {
         
         // 精确匹配
         if apnsDomains.contains(normalized) {
+            
             return true
         }
         
@@ -408,13 +411,13 @@ final actor DNSInterceptor {
         
         // ✅ 检查是否应该绕过隧道
         if shouldBypassTunnel(d) {
-            logger.info("Bypassing tunnel for APNs domain: \(d)")
+            logger.info("BDNSInterceptor ypassing tunnel for APNs domain: \(d)")
             
             // 清理可能存在的旧映射
             if let existingFakeIP = domainToFakeIPMap[d] {
                 domainToFakeIPMap.removeValue(forKey: d)
                 fakeIPToDomainMap.removeValue(forKey: existingFakeIP)
-                logger.info("Removed stale fake IP mapping for APNs domain: \(d)")
+                logger.info("DNSInterceptor Removed stale fake IP mapping for APNs domain: \(d)")
                 persistNow()
             }
             
@@ -451,7 +454,7 @@ final actor DNSInterceptor {
     func registerMapping(fakeIP: IPv4Address, domain: String) {
         let d = Self.normalize(domain)
         if let existed = fakeIPToDomainMap[fakeIP], existed != d {
-            logger.warning("Overwrite mapping \(String(describing: fakeIP)) : \(existed) -> \(d)")
+            logger.warning("DNSInterceptor Overwrite mapping \(String(describing: fakeIP)) : \(existed) -> \(d)")
         }
         fakeIPToDomainMap[fakeIP] = d
         domainToFakeIPMap[d] = fakeIP
@@ -469,7 +472,7 @@ final actor DNSInterceptor {
 
         // ✅ 检查是否应该绕过隧道 - 使用智能转发
         if shouldBypassTunnel(domain) {
-            logger.info("DNS forwarding for APNs domain: \(domain)")
+            logger.info("DNSInterceptor DNS forwarding for APNs domain: \(domain)")
             // 🔑 关键改进：转发到上游DNS而不是返回NXDOMAIN
             return await forwardToUpstreamDNS(queryData: queryData, domain: domain, qtype: qtype)
         }
@@ -478,12 +481,12 @@ final actor DNSInterceptor {
         if qtype == 1 {
             guard let fakeIP = allocOrGet(for: domain) else { return nil }
             let resp = createDNSResponse(for: queryData, ipAddress: fakeIP)
-            logger.debug("Created A record response for \(domain) -> \(String(describing: fakeIP))")
+            logger.debug("DNSInterceptor Created A record response for \(domain) -> \(String(describing: fakeIP))")
             return (resp, fakeIP)
         } else {
             _ = allocOrGet(for: domain)
             let resp = createNoDataSOAResponse(for: queryData, negativeTTL: 10)
-            logger.debug("Non-A query \(domain), qtype=\(qtype) -> NODATA + SOA(10s)")
+            logger.debug("DNSInterceptor Non-A query \(domain), qtype=\(qtype) -> NODATA + SOA(10s)")
             return (resp, nil)
         }
     }
@@ -498,33 +501,33 @@ final actor DNSInterceptor {
         // 检查缓存
         let cacheKey = "\(domain):\(qtype)"
         if let cached = dnsCache[cacheKey], !cached.isExpired {
-            logger.debug("DNS cache hit for \(domain)")
+            logger.debug("DNSInterceptor DNS cache hit for \(domain)")
             return (cached.response, nil)
         }
         
         // 如果只处理A记录查询
         guard qtype == 1 else {
-            logger.debug("Non-A query for APNs domain \(domain), returning NXDOMAIN")
+            logger.debug("DNSInterceptor Non-A query for APNs domain \(domain), returning NXDOMAIN")
             return (createNXDomainResponse(for: queryData), nil)
         }
         
         // 尝试从上游DNS服务器获取真实IP
         for (index, dnsServer) in upstreamDNSServers.enumerated() {
-            logger.debug("Querying upstream DNS \(dnsServer) for \(domain) (attempt \(index + 1))")
+            logger.debug("DNSInterceptor Querying upstream DNS \(dnsServer) for \(domain) (attempt \(index + 1))")
             
             if let response = await queryUpstreamDNS(queryData: queryData, serverIP: dnsServer, domain: domain) {
                 // 缓存成功的响应
                 let cacheEntry = DNSCacheEntry(response: response, timestamp: Date(), ttl: dnsCacheTTL)
                 dnsCache[cacheKey] = cacheEntry
                 
-                logger.info("Successfully resolved \(domain) via upstream DNS \(dnsServer)")
+                logger.info("DNSInterceptor Successfully resolved \(domain) via upstream DNS \(dnsServer)")
                 self.lastAPNsResolveAt = Date()
                 return (response, nil)
             }
         }
         
         // 所有上游DNS都失败，返回临时失败
-        logger.error("All upstream DNS servers failed for \(domain)")
+        logger.error("⚠️⚠️⚠️ DNSInterceptor All upstream DNS servers failed for \(domain)")
         return (createTempFailResponse(for: queryData), nil)
     }
 
@@ -672,7 +675,7 @@ final actor DNSInterceptor {
             }
             return data
         } catch {
-            logger.error("DoH request failed for \(domain): \(error.localizedDescription)")
+            logger.error("⚠️⚠️⚠️⚠️⚠️⚠️ DNSInterceptor DoH request failed for \(domain): \(error.localizedDescription)")
             return nil
         }
     }
@@ -696,7 +699,7 @@ final actor DNSInterceptor {
         let afterCount = dnsCache.count
         
         if beforeCount != afterCount {
-            logger.debug("Cleaned up \(beforeCount - afterCount) expired DNS cache entries")
+            logger.debug("DNSInterceptor Cleaned up \(beforeCount - afterCount) expired DNS cache entries")
         }
     }
 
@@ -708,7 +711,7 @@ final actor DNSInterceptor {
         if let reused = freeList.popLast() {
             fakeIPToDomainMap[reused] = domain
             domainToFakeIPMap[domain] = reused
-            logger.debug("Reused fake IP \(String(describing: reused)) for domain \(domain)")
+            logger.debug("DNSInterceptor Reused fake IP \(String(describing: reused)) for domain \(domain)")
             persistNow()
             return reused
         }
@@ -721,7 +724,7 @@ final actor DNSInterceptor {
         allocator = a
         fakeIPToDomainMap[ip] = domain
         domainToFakeIPMap[domain] = ip
-        logger.debug("Allocated fake IP \(String(describing: ip)) for domain \(domain)")
+        logger.debug("DNSInterceptor Allocated fake IP \(String(describing: ip)) for domain \(domain)")
         persistNow()
         return ip
     }
