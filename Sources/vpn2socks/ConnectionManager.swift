@@ -55,6 +55,12 @@ final actor ConnectionManager {
         return false
     }
     
+    @inline(__always)
+    private func isToFakeDNS(_ dst: IPv4Address, port: UInt16) -> Bool {
+        // 你的 fakeDNSServer 在 PacketTunnelProvider 传进来
+        return dst == fakeDNSServer && port == 53
+    }
+    
     // 新增：检测社交媒体连接
     private func isSocialMediaConnection(_ c: TCPConnection) async -> Bool {
         return await c.isSocialMediaConnection()
@@ -910,6 +916,12 @@ final actor ConnectionManager {
 
     private func handleUDPPacket(_ ipPacket: IPv4Packet) async {
         guard let udp = UDPDatagram(data: ipPacket.payload) else { return }
+        // ★ NEW: 直接丢弃 STUN/TURN（3478、5349），避免泄露公网候选
+        if udp.destinationPort == 3478 || udp.destinationPort == 5349 {
+            // 可选：为了排查，保留一条低频日志
+            logger.debug("[UDP] Drop STUN/TURN to \(String(describing: ipPacket.destinationAddress)):\(udp.destinationPort)")
+            return
+        }
         if ipPacket.destinationAddress == self.fakeDNSServer && udp.destinationPort == 53 {
             await handleDNSQuery(ipPacket: ipPacket, udp: udp)
         } else {
@@ -954,7 +966,15 @@ final actor ConnectionManager {
 
     private func handleTCPPacket(_ ipPacket: IPv4Packet) async {
         guard let tcpSegment = TCPSegment(data: ipPacket.payload) else { return }
-        
+        // ✅ 先挡住 TCP-DNS，避免被分流到代理/直连
+        if ipPacket.destinationAddress == self.fakeDNSServer && tcpSegment.destinationPort == 53 {
+            // 最保守做法：直接丢弃，客户端通常会重试 UDP 或自行回退
+            logger.debug("[DNS/TCP] consume/drop local TCP-DNS \(String(describing: ipPacket.destinationAddress)):53")
+            return
+
+            // 如果你想更友好：可以构造个最小 RST 回去（未来也可实现 TCP-DNS 长度前缀协议）
+            // let rst = makeTcpRst(...); packetFlow.writePackets([rst], withProtocols: [AF_INET as NSNumber]); return
+        }
         // ✅ 检查目标IP是否为APNs网段
         if isAPNsIP(ipPacket.destinationAddress) {
             stats.apnsBypassedConnections += 1

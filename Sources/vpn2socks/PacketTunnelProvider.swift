@@ -9,11 +9,6 @@ import NetworkExtension
 import Network
 import os.log
 
-
-private enum OptKey {
-    static let extraExcludedCIDRs = "LM.extraExcludedCIDRs"
-}
-
 private let logger = Logger(subsystem: "com.vpn2socks", category: "PacketTunnel")
 
 // PacketTunnelProvider with proper concurrency
@@ -52,18 +47,7 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         
         // ✅ 修改路由配置：默认走隧道，后续通过 excludedRoutes 进行精确绕行
         v4.includedRoutes = [
-            NEIPv4Route.default(),
-			NEIPv4Route(destinationAddress: "172.16.0.2", subnetMask: "255.255.255.255"),
-//             NEIPv4Route(destinationAddress: "198.18.0.0", subnetMask: "255.254.0.0"), // 仅 FakeIP /15
-//             NEIPv4Route(destinationAddress: "149.154.160.0", subnetMask: "255.255.240.0"), // 149.154.160.0/20
-//
-//             NEIPv4Route(destinationAddress: "91.108.4.0",   subnetMask: "255.255.252.0"),  // 91.108.4.0/22
-//             NEIPv4Route(destinationAddress: "91.108.8.0",   subnetMask: "255.255.252.0"),  // 91.108.8.0/22
-//             NEIPv4Route(destinationAddress: "91.108.12.0",  subnetMask: "255.255.252.0"),  // 91.108.12.0/22
-//             NEIPv4Route(destinationAddress: "91.108.16.0",  subnetMask: "255.255.252.0"),  // 91.108.16.0/22
-//             NEIPv4Route(destinationAddress: "91.108.20.0",  subnetMask: "255.255.252.0"),  // 91.108.20.0/22
-//             NEIPv4Route(destinationAddress: "91.108.56.0",  subnetMask: "255.255.252.0")   // 91.108.56.0/22
-            
+            NEIPv4Route.default()
         ]
         NSLog("[PacketTunnelProvider] Routing includes 198.18.0.0/15 for fake IPs")
         
@@ -71,7 +55,6 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         v4.excludedRoutes = [
             // 苹果推送服务网段 (17.0.0.0/8) - 核心APNs网段
             NEIPv4Route(destinationAddress: "17.0.0.0", subnetMask: "255.0.0.0"),
-            
             // 本地网络
             NEIPv4Route(destinationAddress: "192.168.0.0", subnetMask: "255.255.0.0"),
             NEIPv4Route(destinationAddress: "10.0.0.0", subnetMask: "255.0.0.0"),
@@ -82,11 +65,7 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
             NEIPv4Route(destinationAddress: "143.224.0.0", subnetMask: "255.240.0.0"),   // Apple 服务
             NEIPv4Route(destinationAddress: "144.178.0.0", subnetMask: "255.254.0.0"),   // Apple 服务备用
             NEIPv4Route(destinationAddress: "199.47.192.0", subnetMask: "255.255.224.0"), // Apple 推送备用
-            NEIPv4Route(destinationAddress: "38.102.126.50", subnetMask: "255.0.0.0"),
-            NEIPv4Route(destinationAddress: "172.67.215.169", subnetMask: "255.255.255.0"),
-            NEIPv4Route(destinationAddress: "1.1.1.1", subnetMask: "255.255.255.0"),
-            NEIPv4Route(destinationAddress: "8.8.8.8", subnetMask: "255.255.255.0"),
-            NEIPv4Route(destinationAddress: "208.67.222.222", subnetMask: "255.255.255.0"),
+            
             // 🔥 腾讯/微信 IP 段
                 NEIPv4Route(destinationAddress: "101.32.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
                 NEIPv4Route(destinationAddress: "101.33.0.0", subnetMask: "255.255.0.0"),     // 腾讯云
@@ -126,43 +105,12 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
                 NEIPv4Route(destinationAddress: "220.196.0.0", subnetMask: "255.252.0.0"),    // 腾讯
                 
         ]
-        
-        
-        let extraCIDRs: [String] = {
-            if let a = options?["LM.extraExcludedCIDRs"] as? [String] { return a }
-            if let a = options?["LM.extraExcludedCIDRs"] as? NSArray { return a.compactMap { $0 as? String } }
-            return []
-        }()
-        
-        
         settings.ipv4Settings = v4
         
-        settings.proxySettings = PacketTunnelProvider.createPACSettings()
         
-        
-        if !extraCIDRs.isEmpty {
-
-            
-            // ✅ 一次性得到路由对象和可读文本
-                let (dynamicRoutes, dynamicPretty) = Self.buildRoutesAndPretty(fromCIDRs: extraCIDRs)
-
-                if v4.excludedRoutes == nil { v4.excludedRoutes = [] }
-                v4.excludedRoutes?.append(contentsOf: dynamicRoutes)
-                settings.ipv4Settings = v4
-            
-            // ② 系统代理绕行：把 CIDR 文本追加到 exceptionList
-            if let proxy = settings.proxySettings {
-                var ex = proxy.exceptionList ?? []
-                    ex.append(contentsOf: extraCIDRs)
-                    proxy.exceptionList = Array(Set(ex))
-                    settings.proxySettings = proxy
-            }
-            
-            NSLog("[PacketTunnelProvider] dynamicRoutes: %@", dynamicPretty.joined(separator: ", ") as NSString)
-            NSLog("[PacketTunnelProvider] dynamicRoutes count = %ld", dynamicRoutes.count)
-        }
-        
-        
+        // 关闭系统代理（iOS 上使用本地 127.0.0.1 代理会导致跨进程不可达）
+        // 如需启用，请确保代理可被应用访问（非本地回环或经由 TUN 可达地址）。
+        // settings.proxySettings = PacketTunnelProvider.createPACSettings()
         
         let dns = NEDNSSettings(servers: [fakeDNS])
         dns.matchDomains = [""] // 关键：让所有域名查询都走fakeDNS
@@ -202,8 +150,7 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
         // 启用PAC自动配置
         proxySettings.autoProxyConfigurationEnabled = true
         proxySettings.proxyAutoConfigurationURL = URL(string: "http://127.0.0.1:8888/pac")
-        proxySettings.httpEnabled = false
-        proxySettings.httpsEnabled = false
+        
         // 排除简单主机名
         proxySettings.excludeSimpleHostnames = true
         
@@ -218,8 +165,6 @@ open class PacketTunnelProvider: NEPacketTunnelProvider {
             "172.16.0.0/12",
             "192.168.0.0/16"
         ]
-        
-        
         
         // 匹配所有域名
         proxySettings.matchDomains = [""]
@@ -614,61 +559,5 @@ final class NetworkSettingsApplier: @unchecked Sendable {
                 box.resume(error)
             }
         }
-    }
-}
-
-
-private extension PacketTunnelProvider {
-    @inline(__always)
-    static func maskString(fromPrefix p: Int) -> String {
-        let m: UInt32 = (p == 0) ? 0 : (UInt32.max << (32 - p))
-        func octet(_ s: Int) -> String { String((m >> s) & 0xff) }
-        return [24,16,8,0].map(octet).joined(separator: ".")
-    }
-
-    @inline(__always)
-    static func ipv4String(_ v: UInt32) -> String {
-        func octet(_ s: Int) -> String { String((v >> s) & 0xff) }
-        return [24,16,8,0].map(octet).joined(separator: ".")
-    }
-
-    // 解析 1 条 CIDR，返回 (路由对象, 可读字符串, 去重key)
-    @inline(__always)
-    static func parseCIDRPretty(_ cidr: String) -> (route: NEIPv4Route, pretty: String, key: String)? {
-        let parts = cidr.split(separator: "/")
-        guard parts.count == 2, let prefix = Int(parts[1]), (0...32).contains(prefix) else { return nil }
-
-        let ipStr = String(parts[0])
-        let octs = ipStr.split(separator: ".").compactMap { UInt8($0) }
-        guard octs.count == 4 else { return nil }
-
-        let ip: UInt32 = octs.reduce(0) { ($0 << 8) | UInt32($1) }
-        let mask: UInt32 = (prefix == 0) ? 0 : (UInt32.max << (32 - prefix))
-        let net = ip & mask
-
-        let netStr  = ipv4String(net)
-        let maskStr = maskString(fromPrefix: prefix)
-
-        let route  = NEIPv4Route(destinationAddress: netStr, subnetMask: maskStr)
-        let pretty = "\(netStr)/\(maskStr)"
-        let key    = pretty
-        return (route, pretty, key)
-    }
-
-    // 批量：返回 (路由数组, 可读字符串数组)
-    @inline(__always)
-    static func buildRoutesAndPretty(fromCIDRs cidrs: [String]) -> (routes: [NEIPv4Route], pretty: [String]) {
-        var seen = Set<String>()
-        var routes: [NEIPv4Route] = []
-        var pretties: [String] = []
-
-        for raw in cidrs {
-            guard let parsed = parseCIDRPretty(raw) else { continue }
-            if seen.insert(parsed.key).inserted {
-                routes.append(parsed.route)
-                pretties.append(parsed.pretty)
-            }
-        }
-        return (routes, pretties)
     }
 }
